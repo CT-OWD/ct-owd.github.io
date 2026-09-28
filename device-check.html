@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Device Check</title>
+<style>
+:root{
+  --bg:#E6EBEF; --panel:#FFFFFF; --sunk:#F3F6F8; --ink:#15202B; --muted:#5B6976;
+  --line:#CAD3DB; --accent:#1F57C3; --accent-soft:#DCE7FB;
+  --pass:#1F8A4C; --fail:#C23A2A; --idle:#A9B4BE;
+  --font:"Google Sans Text","Google Sans","Roboto",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font);background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;
+  display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+/* Rail */
+.rail{background:var(--ink);color:#E8EEF3;display:flex;flex-direction:column;padding:22px 14px 18px;position:sticky;top:0;height:100vh}
+.brand{font-size:19px;font-weight:600;letter-spacing:-.01em;padding:0 10px 18px;display:flex;align-items:center;gap:10px}
+.brand svg{flex:none}
+.nav{display:flex;flex-direction:column;gap:2px;flex:1;overflow:auto}
+.nav-item{display:flex;align-items:center;gap:12px;background:none;border:0;border-radius:8px;padding:9px 10px;text-align:left;cursor:pointer;color:#C9D3DC}
+.nav-item:hover{background:#223040;color:#fff}
+.nav-item[aria-current="true"]{background:#2A3A4D;color:#fff}
+.lamp{width:10px;height:10px;border-radius:50%;flex:none;border:2px solid #56687A;background:transparent;transition:background .2s,border-color .2s,box-shadow .2s}
+.lamp.pass{background:#3DDC84;border-color:#3DDC84;box-shadow:0 0 8px #3DDC8488}
+.lamp.fail{background:#FF6B57;border-color:#FF6B57;box-shadow:0 0 8px #FF6B5788}
+.lamp.none{border-style:dotted;opacity:.5}
+.rail-foot{border-top:1px solid #2B3A4A;padding:14px 10px 0;font-size:13px;color:#9FB0BF}
+.rail-foot strong{color:#fff;font-weight:600}
+.btn-report{margin-top:10px;width:100%;background:#E8EEF3;color:var(--ink);border:0;border-radius:8px;padding:9px;font-weight:600;cursor:pointer}
+.btn-report:hover{background:#fff}
+
+/* Main */
+main{padding:28px clamp(16px,4vw,48px) 60px;min-width:0}
+.banner{background:#FFF4D6;border:1px solid #E8C96A;border-radius:10px;padding:10px 14px;margin-bottom:18px;font-size:14px}
+.view[hidden]{display:none}
+.head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.head h2{font-size:26px;line-height:1.2;margin:0 0 4px;font-weight:600;letter-spacing:-.015em}
+.head p{margin:0;color:var(--muted);max-width:62ch}
+.verdict{display:flex;gap:8px}
+.verdict button{border:1.5px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500}
+.verdict button:hover{border-color:var(--ink)}
+.verdict .v-pass[aria-pressed="true"]{background:var(--pass);border-color:var(--pass);color:#fff}
+.verdict .v-fail[aria-pressed="true"]{background:var(--fail);border-color:var(--fail);color:#fff}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.stack{display:grid;gap:16px}
+.two{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(240px,1fr);gap:16px}
+@media (max-width:900px){.two{grid-template-columns:1fr}}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.btn{border:1.5px solid var(--line);background:var(--panel);border-radius:8px;padding:8px 14px;cursor:pointer;font-weight:500}
+.btn:hover{border-color:var(--ink)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:#1848A6}
+.btn:disabled{opacity:.5;cursor:default}
+select,input[type=search]{border:1.5px solid var(--line);border-radius:8px;padding:7px 10px;background:var(--panel);max-width:100%}
+label.chk{display:inline-flex;gap:6px;align-items:center;font-size:14px;color:var(--muted)}
+.msg{color:var(--fail);font-size:14px;margin:8px 0 0}
+.msg:empty{display:none}
+.hint{color:var(--muted);font-size:14px;margin:0}
+.big{font-size:32px;font-weight:600;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.small-label{font-size:13px;color:var(--muted)}
+
+/* Specs */
+.hero{padding:26px 24px;background:var(--ink);color:#fff;border-radius:14px;margin-bottom:16px;position:relative;overflow:hidden}
+.hero p{margin:0;color:#A9BACA}
+.hero h1{font-size:clamp(30px,5vw,52px);line-height:1.05;margin:6px 0 10px;font-weight:600;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.hero .copy-ver{position:absolute;top:18px;right:18px;background:#2A3A4D;border:0;color:#fff;border-radius:8px;padding:6px 12px;cursor:pointer;font-size:13px}
+.specs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:14px;overflow:hidden;margin:0}
+.specs div{background:var(--panel);padding:12px 16px}
+.specs dt{font-size:13px;color:var(--muted)}
+.specs dd{margin:2px 0 0;font-weight:500;word-break:break-word}
+.ua{font-size:12.5px;color:var(--muted);margin-top:12px;word-break:break-all}
+
+/* Camera */
+.stage{background:#0E151C;border-radius:14px;overflow:hidden;aspect-ratio:16/9;display:grid;place-items:center;position:relative}
+.stage video{width:100%;height:100%;object-fit:contain}
+.stage video.mirror{transform:scaleX(-1)}
+.stage .empty{color:#8FA0AF;padding:20px;text-align:center}
+.readout{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#snapImg{width:100%;border-radius:10px;display:none;margin-top:8px}
+
+/* Mic */
+.meter{height:22px;background:var(--sunk);border:1px solid var(--line);border-radius:6px;overflow:hidden;position:relative}
+.meter-fill{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--pass) 0 70%,#D9A21B 70% 88%,var(--fail) 88%)}
+.meter-peak{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);left:0}
+canvas.wave{width:100%;height:120px;background:var(--sunk);border-radius:10px;display:block}
+
+/* Speakers */
+.spk{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.spk button{padding:26px 10px;border-radius:12px;border:1.5px solid var(--line);background:var(--panel);cursor:pointer;font-weight:600;font-size:16px}
+.spk button:hover{border-color:var(--ink)}
+.spk button.playing{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* Keyboard */
+.kb-wrap{overflow-x:auto;padding-bottom:6px}
+.kb{display:flex;gap:14px;min-width:820px;user-select:none}
+.kb-main{flex:1;display:flex;flex-direction:column;gap:6px}
+.kb-row{display:flex;gap:6px}
+.kb-row.top{margin-bottom:6px}
+.key{flex-basis:0;min-width:0;height:46px;border:1px solid var(--line);border-bottom-width:3px;border-radius:7px;background:var(--sunk);display:flex;align-items:flex-end;padding:4px 7px;font-size:12px;line-height:1.1;color:var(--muted);transition:background .12s}
+.key.hit{background:var(--accent-soft);border-color:#9DB7E8;color:var(--ink)}
+.key.down{background:var(--accent);border-color:#123E92;color:#fff;transform:translateY(1px)}
+.kb-side{display:grid;grid-template-columns:repeat(3,46px);grid-auto-rows:46px;gap:6px;align-content:end}
+.kb-side .key{height:auto}
+.kb-stats{display:flex;gap:28px;flex-wrap:wrap;margin-top:14px}
+code{background:var(--sunk);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:13px}
+
+/* Pointer */
+.pad{height:300px;border:2px dashed var(--line);border-radius:14px;display:grid;place-items:center;background:var(--sunk);cursor:crosshair;text-align:center;color:var(--muted);touch-action:none;position:relative}
+.btns{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:14px}
+.btns div{border:1px solid var(--line);border-radius:10px;padding:10px;text-align:center;background:var(--panel)}
+.btns div.down{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btns div.down .small-label{color:#DCE7FB}
+.btns b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
+@media (max-width:600px){.btns{grid-template-columns:repeat(3,1fr)}}
+
+/* Touch */
+#touchCanvas{width:100%;height:420px;background:var(--sunk);border-radius:14px;touch-action:none;display:block;border:1px solid var(--line)}
+
+/* Display overlay */
+#overlay{position:fixed;inset:0;z-index:50;display:none;cursor:none}
+#overlay.on{display:block}
+#overlay .tip{position:absolute;left:50%;bottom:32px;transform:translateX(-50%);background:rgba(20,30,40,.85);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;transition:opacity .5s;pointer-events:none;white-space:nowrap}
+
+/* Settings */
+.grp h3{font-size:16px;margin:0 0 8px;font-weight:600}
+.links{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:8px}
+.link{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel)}
+.link span{display:block;font-size:12.5px;color:var(--muted);word-break:break-all}
+.link button{flex:none;border:1.5px solid var(--line);background:var(--panel);border-radius:7px;padding:5px 10px;cursor:pointer;font-size:13px}
+.link button:hover{border-color:var(--accent);color:var(--accent)}
+.shortcuts{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;margin:0}
+.shortcuts dt{font-weight:500}
+.shortcuts dd{margin:0;color:var(--muted)}
+kbd{background:var(--sunk);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 6px;font-family:inherit;font-size:13px}
+
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;opacity:0;transition:.25s;pointer-events:none;z-index:60}
+.toast.on{opacity:1;transform:translateX(-50%)}
+
+@media (max-width:760px){
+  body{grid-template-columns:1fr}
+  .rail{position:static;height:auto;padding:14px}
+  .brand{padding-bottom:10px}
+  .nav{flex-direction:row;overflow-x:auto;padding-bottom:4px}
+  .nav-item{white-space:nowrap}
+  .rail-foot{display:flex;align-items:center;gap:12px;justify-content:space-between}
+  .btn-report{width:auto;margin:0;padding:8px 14px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<aside class="rail">
+  <div class="brand">
+    <svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><rect x="1.5" y="3.5" width="19" height="13" rx="2" fill="none" stroke="#3DDC84" stroke-width="2"/><path d="M7 20h8" stroke="#3DDC84" stroke-width="2" stroke-linecap="round"/><path d="M6 10l3 3 6-6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    Device Check
+  </div>
+  <nav class="nav" id="nav" aria-label="Tests"></nav>
+  <div class="rail-foot">
+    <div id="tally"><strong>0</strong> of 9 checked</div>
+    <button class="btn-report" id="copyReport">Copy report</button>
+  </div>
+</aside>
+
+<main>
+  <div class="banner" id="frameBanner" hidden>You're viewing this inside a preview, which can block the camera, microphone and fullscreen. For full access, download this file and open it in Chrome.</div>
+
+  <!-- SYSTEM -->
+  <section class="view" id="view-system">
+    <div class="hero">
+      <p>This device is running</p>
+      <h1 id="osName">Checking…</h1>
+      <p id="osSub"></p>
+      <button class="copy-ver" id="copyVer">Copy version</button>
+    </div>
+    <dl class="specs" id="specs"></dl>
+    <p class="ua" id="uaLine"></p>
+  </section>
+
+  <!-- CAMERA -->
+  <section class="view" id="view-camera" hidden>
+    <div class="head"><div><h2>Camera</h2><p>You should see yourself below. Check that the picture is sharp, the colors look right and the motion is smooth.</p></div></div>
+    <div class="two">
+      <div class="stage"><video id="video" class="mirror" playsinline muted></video><div class="empty" id="camEmpty">Starting camera…</div></div>
+      <div class="panel stack">
+        <div class="stack" style="gap:8px">
+          <select id="camSel" aria-label="Camera"></select>
+          <div class="row"><label class="chk"><input type="checkbox" id="mirror" checked> Mirror view</label></div>
+          <p class="msg" id="camMsg"></p>
+        </div>
+        <div class="readout">
+          <div><div class="big" id="camRes">–</div><div class="small-label">Resolution</div></div>
+          <div><div class="big" id="camFps">–</div><div class="small-label">Frames per second</div></div>
+        </div>
+        <div class="row"><button class="btn" id="snap">Take a photo</button><a class="btn" id="snapDl" download="camera-test.png" style="display:none;text-decoration:none">Save photo</a></div>
+        <img id="snapImg" alt="Photo taken from the camera">
+      </div>
+    </div>
+  </section>
+
+  <!-- MIC -->
+  <section class="view" id="view-mic" hidden>
+    <div class="head"><div><h2>Microphone</h2><p>Talk normally. The bar should move with your voice. Record a clip to hear how you sound to others.</p></div></div>
+    <div class="two">
+      <div class="panel stack">
+        <div class="meter"><div class="meter-fill" id="meterFill"></div><div class="meter-peak" id="meterPeak"></div></div>
+        <canvas class="wave" id="wave"></canvas>
+        <div class="readout">
+          <div><div class="big" id="micDb">–</div><div class="small-label">Level (dBFS)</div></div>
+          <div><div class="big" id="micPeak">–</div><div class="small-label">Loudest so far</div></div>
+        </div>
+      </div>
+      <div class="panel stack">
+        <select id="micSel" aria-label="Microphone"></select>
+        <div class="stack" style="gap:4px">
+          <label class="chk"><input type="checkbox" id="ec" checked> Echo cancellation</label>
+          <label class="chk"><input type="checkbox" id="ns" checked> Noise suppression</label>
+          <label class="chk"><input type="checkbox" id="agc" checked> Auto gain</label>
+          <label class="chk"><input type="checkbox" id="monitor"> Hear yourself live (use headphones)</label>
+        </div>
+        <p class="msg" id="micMsg"></p>
+        <div class="row"><button class="btn primary" id="rec">Record 5 seconds</button></div>
+        <audio id="playback" controls style="width:100%;display:none"></audio>
+      </div>
+    </div>
+  </section>
+
+  <!-- SPEAKERS -->
+  <section class="view" id="view-speakers" hidden>
+    <div class="head"><div><h2>Speakers & headphones</h2><p>Each button plays a short tone. Left should only come from the left side, right only from the right.</p></div></div>
+    <div class="stack">
+      <div class="spk">
+        <button data-pan="-1">Left</button>
+        <button data-pan="0">Both</button>
+        <button data-pan="1">Right</button>
+      </div>
+      <div class="panel stack">
+        <div class="row">
+          <button class="btn" id="sweep">Play frequency sweep</button>
+          <button class="btn" id="spkStop">Stop</button>
+          <span class="hint" id="sweepHz"></span>
+        </div>
+        <p class="hint">The sweep rises from 40 Hz to 16,000 Hz. Rattling or buzzing at low pitches can mean a damaged speaker. Most adults stop hearing the tone somewhere above 12,000 Hz.</p>
+        <div class="row">
+          <label class="small-label" for="vol">Test volume</label>
+          <input type="range" id="vol" min="0" max="1" step="0.05" value="0.3">
+        </div>
+        <div class="row" id="sinkRow" hidden>
+          <label class="small-label" for="sinkSel">Output</label>
+          <select id="sinkSel"></select>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- KEYBOARD -->
+  <section class="view" id="view-keyboard" hidden>
+    <div class="head"><div><h2>Keyboard</h2><p>Press every key. Keys turn blue while held and stay light blue once they've registered. Keys won't do their normal job while you're on this test.</p></div></div>
+    <div class="panel">
+      <div class="row" style="justify-content:space-between;margin-bottom:14px">
+        <div class="row">
+          <label class="small-label" for="layout">Layout</label>
+          <select id="layout"><option value="cb">Chromebook</option><option value="std">Standard PC</option></select>
+        </div>
+        <button class="btn" id="kbReset">Clear keys</button>
+      </div>
+      <div class="kb-wrap"><div class="kb" id="kb"></div></div>
+      <div class="kb-stats">
+        <div><div class="big" id="kbCount">0 / 0</div><div class="small-label">Keys registered</div></div>
+        <div><div class="big" id="kbLast" style="font-size:22px;padding-top:6px">–</div><div class="small-label">Last key (code and value)</div></div>
+      </div>
+      <p class="hint" style="margin-top:12px" id="kbNote">On a Chromebook, brightness, volume and lock are handled by ChromeOS and may never reach this page. If those keys work on the device itself, they're fine. To test the top row here, hold <kbd>Search</kbd> while pressing it.</p>
+    </div>
+  </section>
+
+  <!-- POINTER -->
+  <section class="view" id="view-pointer" hidden>
+    <div class="head"><div><h2>Mouse & touchpad</h2><p>Click, right-click, double-click and scroll inside the box.</p></div></div>
+    <div class="panel">
+      <div class="pad" id="pad"><div><div style="font-weight:500;color:var(--ink)">Click and scroll here</div><div class="small-label" id="padPos">Move the pointer to see its position</div><div class="small-label" style="margin-top:6px">On a Chromebook touchpad, right-click is a two-finger tap or <kbd>Alt</kbd> + click.</div></div></div>
+      <div class="btns">
+        <div id="b0"><b>0</b><span class="small-label">Left</span></div>
+        <div id="b2"><b>0</b><span class="small-label">Right</span></div>
+        <div id="b1"><b>0</b><span class="small-label">Middle</span></div>
+        <div id="bdbl"><b>0</b><span class="small-label">Double-clicks</span></div>
+        <div id="bwheel"><b>0</b><span class="small-label">Scroll events</span></div>
+      </div>
+      <p class="hint" style="margin-top:12px" id="scrollDir">Scroll direction: none yet</p>
+    </div>
+  </section>
+
+  <!-- TOUCH -->
+  <section class="view" id="view-touch" hidden>
+    <div class="head"><div><h2>Touchscreen & stylus</h2><p>Draw across the whole area, including the edges and corners, to find dead zones. Use several fingers at once to test multi-touch.</p></div></div>
+    <div class="panel stack">
+      <canvas id="touchCanvas"></canvas>
+      <div class="row" style="justify-content:space-between">
+        <div class="row" style="gap:28px">
+          <div><div class="big" id="tNow">0</div><div class="small-label">Touching now</div></div>
+          <div><div class="big" id="tMax">0</div><div class="small-label">Most at once</div></div>
+          <div><div class="big" id="tSupported">–</div><div class="small-label">Device supports</div></div>
+          <div><div class="big" id="tType" style="font-size:22px;padding-top:6px">–</div><div class="small-label">Input type and pressure</div></div>
+        </div>
+        <button class="btn" id="tClear">Clear drawing</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DISPLAY -->
+  <section class="view" id="view-display" hidden>
+    <div class="head"><div><h2>Display</h2><p>Run the pixel test to fill the screen with solid colors and gradients. Look for specks that don't match, uneven brightness, or banding.</p></div></div>
+    <div class="stack">
+      <div class="panel">
+        <div class="row" style="gap:36px;margin-bottom:16px">
+          <div><div class="big" id="dRes">–</div><div class="small-label">Screen size (CSS pixels)</div></div>
+          <div><div class="big" id="dPhys">–</div><div class="small-label">Physical pixels</div></div>
+          <div><div class="big" id="dHz">–</div><div class="small-label">Refresh rate</div></div>
+        </div>
+        <div class="row"><button class="btn primary" id="pixelStart">Start pixel test</button><button class="btn" id="hzAgain">Measure refresh rate again</button></div>
+        <p class="hint" style="margin-top:10px">During the test, click or press <kbd>Space</kbd> for the next screen and <kbd>Esc</kbd> to finish.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- NETWORK -->
+  <section class="view" id="view-network" hidden>
+    <div class="head"><div><h2>Network</h2><p>Checks whether you're online, how quickly servers respond, and a quick download speed.</p></div></div>
+    <div class="stack">
+      <div class="panel">
+        <div class="row" style="gap:36px;margin-bottom:16px">
+          <div><div class="big" id="nOnline">–</div><div class="small-label">Connection</div></div>
+          <div><div class="big" id="nPing">–</div><div class="small-label">Response time</div></div>
+          <div><div class="big" id="nSpeed">–</div><div class="small-label">Download speed</div></div>
+        </div>
+        <div class="row"><button class="btn primary" id="nRun">Run speed test</button></div>
+        <p class="msg" id="nMsg"></p>
+      </div>
+      <dl class="specs" id="nInfo"></dl>
+      <p class="hint">For Wi‑Fi signal strength and a full connectivity check on a Chromebook, open <code>chrome://diagnostics</code> from the ChromeOS shortcuts page.</p>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="view" id="view-settings" hidden>
+    <div class="head"><div><h2>ChromeOS shortcuts</h2><p>Chrome won't let a web page open these pages directly. Copy a link, then paste it into the address bar and press <kbd>Enter</kbd>.</p></div>
+      <input type="search" id="linkFilter" placeholder="Filter, e.g. bluetooth" aria-label="Filter shortcuts"></div>
+    <div class="stack" id="linkGroups"></div>
+    <div class="panel grp" style="margin-top:16px">
+      <h3>Keyboard shortcuts worth knowing</h3>
+      <dl class="shortcuts">
+        <dt><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>/</kbd></dt><dd>Show every keyboard shortcut</dd>
+        <dt><kbd>Search</kbd> <kbd>Esc</kbd></dt><dd>Task Manager</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Overview</kbd></dt><dd>Screenshot or screen recording</dd>
+        <dt><kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>I</kbd></dt><dd>Send feedback to Google</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>Shift</kbd> <kbd>Q</kbd> twice</dt><dd>Sign out</dd>
+        <dt><kbd>Ctrl</kbd> <kbd>Alt</kbd> <kbd>Shift</kbd> <kbd>R</kbd></dt><dd>Powerwash from the sign-in screen</dd>
+        <dt><kbd>Esc</kbd> <kbd>Refresh</kbd> <kbd>Power</kbd></dt><dd>Recovery mode</dd>
+      </dl>
+    </div>
+  </section>
+</main>
+
+<div id="overlay"><div class="tip" id="overlayTip"></div></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const VIEWS = [
+  {id:'system', name:'System info', verdict:false},
+  {id:'camera', name:'Camera'},
+  {id:'mic', name:'Microphone'},
+  {id:'speakers', name:'Speakers'},
+  {id:'keyboard', name:'Keyboard'},
+  {id:'pointer', name:'Mouse & touchpad'},
+  {id:'touch', name:'Touchscreen'},
+  {id:'display', name:'Display'},
+  {id:'network', name:'Network'},
+  {id:'settings', name:'ChromeOS shortcuts', verdict:false},
+];
+const TESTABLE = VIEWS.filter(v => v.verdict !== false);
+const status = {};
+let current = null;
+let sysInfo = {};
+
+if (window.self !== window.top) $('#frameBanner').hidden = false;
+
+/* ---------- helpers ---------- */
+function toast(text){ const t=$('#toast'); t.textContent=text; t.classList.add('on'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('on'),1800); }
+async function copy(text){
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch { const t=document.createElement('textarea'); t.value=text; document.body.appendChild(t); t.select(); let ok=false; try{ok=document.execCommand('copy');}catch{} t.remove(); return ok; }
+}
+function mediaError(e, what){
+  const n = e && e.name;
+  const frame = window.self !== window.top ? ' If this is inside a preview, download the file and open it directly.' : '';
+  if (n==='NotAllowedError') return `${what} access is blocked. Click the icon at the right of the address bar to allow it, or check Settings > Privacy and security > Privacy controls.${frame}`;
+  if (n==='NotFoundError' || n==='OverconstrainedError') return `No ${what.toLowerCase()} was found. If it's external, check the cable or try another port.`;
+  if (n==='NotReadableError') return `The ${what.toLowerCase()} is in use by another app or tab. Close it and switch back to this test.`;
+  if (!navigator.mediaDevices) return `${what} access needs a secure page (https or a local file).`;
+  return `${what} couldn't start: ${e && e.message ? e.message : e}.${frame}`;
+}
+async function fillDevices(kind, sel, currentId){
+  if (!navigator.mediaDevices?.enumerateDevices) return;
+  const list = (await navigator.mediaDevices.enumerateDevices()).filter(d=>d.kind===kind);
+  sel.innerHTML = list.map((d,i)=>`<option value="${d.deviceId}">${d.label || (kind==='videoinput'?'Camera ':kind==='audioinput'?'Microphone ':'Output ')+(i+1)}</option>`).join('');
+  if (currentId) sel.value = currentId;
+}
+
+/* ---------- nav + status ---------- */
+const nav = $('#nav');
+VIEWS.forEach(v=>{
+  const b=document.createElement('button');
+  b.className='nav-item'; b.dataset.view=v.id;
+  b.innerHTML=`<span class="lamp${v.verdict===false?' none':''}" id="lamp-${v.id}"></span><span>${v.name}</span>`;
+  b.onclick=()=>showView(v.id);
+  nav.appendChild(b);
+  if (v.verdict!==false){
+    const head = document.querySelector(`#view-${v.id} .head`);
+    const d=document.createElement('div'); d.className='verdict';
+    d.innerHTML=`<button class="v-pass" aria-pressed="false">It works</button><button class="v-fail" aria-pressed="false">Has a problem</button>`;
+    d.querySelector('.v-pass').onclick=()=>setStatus(v.id,'pass');
+    d.querySelector('.v-fail').onclick=()=>setStatus(v.id,'fail');
+    head.appendChild(d);
+  }
+});
+function setStatus(id, s){
+  status[id] = status[id]===s ? undefined : s;
+  const lamp=$('#lamp-'+id); lamp.className='lamp'+(status[id]?' '+status[id]:'');
+  const d=document.querySelector(`#view-${id} .verdict`);
+  d.querySelector('.v-pass').setAttribute('aria-pressed', status[id]==='pass');
+  d.querySelector('.v-fail').setAttribute('aria-pressed', status[id]==='fail');
+  const done=TESTABLE.filter(v=>status[v.id]).length;
+  const bad=TESTABLE.filter(v=>status[v.id]==='fail').length;
+  $('#tally').innerHTML=`<strong>${done}</strong> of ${TESTABLE.length} checked${bad?`, <strong style="color:#FF8A7A">${bad}</strong> with problems`:''}`;
+}
+function showView(id){
+  if (current===id) return;
+  const prev=current; current=id;
+  document.querySelectorAll('.view').forEach(s=>s.hidden = s.id!=='view-'+id);
+  document.querySelectorAll('.nav-item').forEach(b=>b.setAttribute('aria-current', b.dataset.view===id));
+  if (prev==='camera') stopCam();
+  if (prev==='mic') stopMic();
+  if (prev==='speakers') stopSound();
+  if (id==='camera') startCam();
+  if (id==='mic') startMic();
+  if (id==='touch') sizeTouch();
+  if (id==='display') { fillDisplay(); measureHz(); }
+  if (id==='network') fillNetwork();
+  if (id==='speakers') fillSinks();
+  window.scrollTo(0,0);
+}
+
+/* ---------- system ---------- */
+async function loadSystem(){
+  const ua=navigator.userAgent;
+  let h={};
+  try { if (navigator.userAgentData) h = await navigator.userAgentData.getHighEntropyValues(['platform','platformVersion','architecture','bitness','model','fullVersionList']); } catch {}
+  const brands=(h.fullVersionList||[]).filter(b=>!/not.?a.?brand/i.test(b.brand));
+  const pick = brands.find(b=>b.brand==='Google Chrome') || brands.find(b=>/Edge|Opera|Brave/.test(b.brand)) || brands.find(b=>b.brand==='Chromium');
+  const uaChrome = ua.match(/Chrome\/([\d.]+)/);
+  const browserName = pick ? pick.brand : (uaChrome ? 'Chrome' : (/Firefox\/([\d.]+)/.test(ua)?'Firefox':/Safari/.test(ua)?'Safari':'Unknown'));
+  const browserVer = pick ? pick.version : (uaChrome ? uaChrome[1] : (ua.match(/(?:Firefox|Version)\/([\d.]+)/)||[])[1] || '');
+  const cros = /CrOS/.test(ua) || /Chrome ?OS/i.test(h.platform||'');
+  const crosTok = ua.match(/CrOS\s+(\S+)\s+([\d.]+)/);
+  let os, sub=[];
+  if (cros){
+    os = `ChromeOS ${browserVer}`;
+    const plat = h.platformVersion || (crosTok && crosTok[2]);
+    if (plat) sub.push(`Platform ${plat}`);
+    sub.push(`Milestone ${browserVer.split('.')[0]}`);
+  } else if (h.platform){
+    let pv=h.platformVersion||'';
+    if (h.platform==='Windows'){ os = parseInt(pv)>=13 ? 'Windows 11' : 'Windows 10 or earlier'; }
+    else os = `${h.platform} ${pv}`.trim();
+  } else {
+    os = /Mac OS X/.test(ua)?'macOS':/Windows/.test(ua)?'Windows':/Android/.test(ua)?'Android':/iPhone|iPad/.test(ua)?'iOS':/Linux/.test(ua)?'Linux':navigator.platform||'Unknown';
+  }
+  const arch = h.architecture ? `${h.architecture}${h.bitness?' '+h.bitness+'-bit':''}` : (crosTok?crosTok[1]:'');
+  if (arch) sub.push(arch);
+  if (h.model) sub.push(h.model);
+  $('#osName').textContent=os;
+  $('#osSub').textContent=sub.join(', ');
+
+  let gpu='Unavailable';
+  try { const gl=document.createElement('canvas').getContext('webgl'); const ext=gl.getExtension('WEBGL_debug_renderer_info'); gpu=gl.getParameter(ext?ext.UNMASKED_RENDERER_WEBGL:gl.RENDERER); } catch {}
+  let battery='Not reported';
+  try { if (navigator.getBattery){ const b=await navigator.getBattery(); battery = `${Math.round(b.level*100)}%, ${b.charging?'charging':'on battery'}`;
+    if (!b.charging && isFinite(b.dischargingTime)) battery += `, about ${Math.round(b.dischargingTime/60)} min left`;
+    if (b.charging && isFinite(b.chargingTime) && b.chargingTime>0) battery += `, full in about ${Math.round(b.chargingTime/60)} min`;
+  } } catch {}
+  const mem = navigator.deviceMemory ? (navigator.deviceMemory>=8 ? '8 GB or more' : navigator.deviceMemory+' GB') : 'Not reported';
+  sysInfo = {
+    'Operating system': os + (sub.length?` (${sub.join(', ')})`:''),
+    'Browser': `${browserName} ${browserVer}`,
+    'CPU threads': navigator.hardwareConcurrency || 'Not reported',
+    'Memory': mem,
+    'Graphics': gpu,
+    'Battery': battery,
+    'Screen': `${screen.width} × ${screen.height} at ${devicePixelRatio}× scaling`,
+    'Window': `${innerWidth} × ${innerHeight}`,
+    'Color depth': screen.colorDepth+'-bit',
+    'Touch points': navigator.maxTouchPoints || 'None',
+    'Language': navigator.language,
+    'Time zone': Intl.DateTimeFormat().resolvedOptions().timeZone,
+    'Cookies': navigator.cookieEnabled?'Enabled':'Blocked',
+    'Online': navigator.onLine?'Yes':'No',
+  };
+  $('#specs').innerHTML = Object.entries(sysInfo).filter(([k])=>k!=='Operating system').map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+  $('#uaLine').textContent = 'User agent: '+ua;
+  $('#copyVer').onclick = async ()=>{ if (await copy(sysInfo['Operating system'])) toast('Version copied'); };
+}
+
+/* ---------- camera ---------- */
+let camStream=null, fpsRaf=0;
+const video=$('#video');
+async function startCam(){
+  stopCam(); $('#camMsg').textContent=''; $('#camEmpty').style.display=''; $('#camEmpty').textContent='Starting camera…';
+  const id=$('#camSel').value;
+  const v={width:{ideal:1920},height:{ideal:1080}}; if (id) v.deviceId={exact:id};
+  try{
+    camStream = await navigator.mediaDevices.getUserMedia({video:v,audio:false});
+    if (current!=='camera'){ stopCam(); return; }
+    video.srcObject=camStream; await video.play();
+    $('#camEmpty').style.display='none';
+    const s=camStream.getVideoTracks()[0].getSettings();
+    await fillDevices('videoinput', $('#camSel'), s.deviceId);
+    $('#camRes').textContent = `${s.width||video.videoWidth}×${s.height||video.videoHeight}`;
+    measureFps();
+  }catch(e){ $('#camEmpty').textContent='No picture'; $('#camMsg').textContent=mediaError(e,'Camera'); }
+}
+function stopCam(){ if (camStream) camStream.getTracks().forEach(t=>t.stop()); camStream=null; video.srcObject=null; fpsRaf++; }
+function measureFps(){
+  const token=++fpsRaf; let n=0, t0=performance.now();
+  const tick=()=>{ if (token!==fpsRaf) return; n++; const now=performance.now();
+    if (now-t0>=1000){ $('#camFps').textContent=Math.round(n*1000/(now-t0)); n=0; t0=now; $('#camRes').textContent=`${video.videoWidth}×${video.videoHeight}`; }
+    video.requestVideoFrameCallback ? video.requestVideoFrameCallback(tick) : requestAnimationFrame(tick); };
+  if (video.requestVideoFrameCallback) video.requestVideoFrameCallback(tick); else { $('#camFps').textContent='n/a'; }
+}
+$('#camSel').onchange=startCam;
+$('#mirror').onchange=e=>video.classList.toggle('mirror',e.target.checked);
+$('#snap').onclick=()=>{
+  if (!camStream) return;
+  const c=document.createElement('canvas'); c.width=video.videoWidth; c.height=video.videoHeight;
+  const x=c.getContext('2d'); if ($('#mirror').checked){ x.translate(c.width,0); x.scale(-1,1); } x.drawImage(video,0,0);
+  const url=c.toDataURL('image/png'); $('#snapImg').src=url; $('#snapImg').style.display='block'; $('#snapDl').href=url; $('#snapDl').style.display='';
+};
+
+/* ---------- microphone ---------- */
+let micStream=null, micCtx=null, micSrc=null, micMon=null, micRaf=0, micPeak=-Infinity;
+async function startMic(){
+  stopMic(); $('#micMsg').textContent=''; micPeak=-Infinity; $('#micPeak').textContent='–';
+  const id=$('#micSel').value;
+  const a={echoCancellation:$('#ec').checked,noiseSuppression:$('#ns').checked,autoGainControl:$('#agc').checked};
+  if (id) a.deviceId={exact:id};
+  try{
+    micStream=await navigator.mediaDevices.getUserMedia({audio:a,video:false});
+    if (current!=='mic'){ stopMic(); return; }
+    await fillDevices('audioinput', $('#micSel'), micStream.getAudioTracks()[0].getSettings().deviceId);
+    micCtx=new AudioContext(); micSrc=micCtx.createMediaStreamSource(micStream);
+    const an=micCtx.createAnalyser(); an.fftSize=2048; micSrc.connect(an);
+    micMon=micCtx.createGain(); micMon.gain.value=$('#monitor').checked?1:0; micSrc.connect(micMon).connect(micCtx.destination);
+    const buf=new Float32Array(an.fftSize), cv=$('#wave'), g=cv.getContext('2d');
+    const token=++micRaf;
+    const loop=()=>{
+      if (token!==micRaf) return;
+      an.getFloatTimeDomainData(buf);
+      let sum=0; for (const s of buf) sum+=s*s;
+      const db=Math.max(-90, 20*Math.log10(Math.sqrt(sum/buf.length)||1e-9));
+      micPeak=Math.max(micPeak,db);
+      const pct=v=>Math.min(100,Math.max(0,(v+60)/60*100));
+      $('#meterFill').style.width=pct(db)+'%'; $('#meterPeak').style.left=pct(micPeak)+'%';
+      $('#micDb').textContent=db.toFixed(0); $('#micPeak').textContent=micPeak.toFixed(0);
+      const w=cv.clientWidth*devicePixelRatio, h=cv.clientHeight*devicePixelRatio;
+      if (cv.width!==w||cv.height!==h){ cv.width=w; cv.height=h; }
+      g.clearRect(0,0,w,h); g.strokeStyle='#1F57C3'; g.lineWidth=2*devicePixelRatio; g.beginPath();
+      for (let i=0;i<buf.length;i+=2){ const x=i/buf.length*w, y=h/2+buf[i]*h/2*1.6; i?g.lineTo(x,y):g.moveTo(x,y); }
+      g.stroke(); requestAnimationFrame(loop);
+    };
+    loop();
+  }catch(e){ $('#micMsg').textContent=mediaError(e,'Microphone'); }
+}
+function stopMic(){ micRaf++; if (micStream) micStream.getTracks().forEach(t=>t.stop()); micStream=null; if (micCtx) micCtx.close(); micCtx=null; }
+['#micSel','#ec','#ns','#agc'].forEach(s=>$(s).onchange=startMic);
+$('#monitor').onchange=e=>{ if (micMon) micMon.gain.value=e.target.checked?1:0; };
+$('#rec').onclick=()=>{
+  if (!micStream) return;
+  const btn=$('#rec'), chunks=[], r=new MediaRecorder(micStream);
+  r.ondataavailable=e=>chunks.push(e.data);
+  r.onstop=()=>{ const p=$('#playback'); p.src=URL.createObjectURL(new Blob(chunks,{type:r.mimeType})); p.style.display='block'; p.play(); btn.disabled=false; btn.textContent='Record 5 seconds'; };
+  r.start(); btn.disabled=true; let left=5; btn.textContent=`Recording… ${left}`;
+  const iv=setInterval(()=>{ left--; if (left<=0){ clearInterval(iv); if (r.state==='recording') r.stop(); } else btn.textContent=`Recording… ${left}`; },1000);
+};
+
+/* ---------- speakers ---------- */
+let spkCtx=null, spkNodes=[];
+const ctx=()=> spkCtx ||= new AudioContext();
+function stopSound(){ spkNodes.forEach(n=>{try{n.stop()}catch{}}); spkNodes=[]; document.querySelectorAll('.spk button').forEach(b=>b.classList.remove('playing')); $('#sweepHz').textContent=''; }
+function tone(pan, btn){
+  stopSound(); const c=ctx(); c.resume();
+  const o=c.createOscillator(), g=c.createGain(), p=c.createStereoPanner(), t=c.currentTime, v=+$('#vol').value;
+  o.frequency.value=440; p.pan.value=pan;
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+.05); g.gain.setValueAtTime(v,t+1.1); g.gain.linearRampToValueAtTime(0,t+1.3);
+  o.connect(g).connect(p).connect(c.destination); o.start(t); o.stop(t+1.35); spkNodes.push(o);
+  btn.classList.add('playing'); o.onended=()=>btn.classList.remove('playing');
+}
+document.querySelectorAll('.spk button').forEach(b=>b.onclick=()=>tone(+b.dataset.pan,b));
+$('#sweep').onclick=()=>{
+  stopSound(); const c=ctx(); c.resume();
+  const o=c.createOscillator(), g=c.createGain(), t=c.currentTime, dur=10, v=+$('#vol').value;
+  o.frequency.setValueAtTime(40,t); o.frequency.exponentialRampToValueAtTime(16000,t+dur);
+  g.gain.setValueAtTime(0,t); g.gain.linearRampToValueAtTime(v,t+.1); g.gain.setValueAtTime(v,t+dur-.1); g.gain.linearRampToValueAtTime(0,t+dur);
+  o.connect(g).connect(c.destination); o.start(t); o.stop(t+dur); spkNodes.push(o);
+  const iv=setInterval(()=>{ const e=c.currentTime-t; if (e>=dur||!spkNodes.includes(o)){ clearInterval(iv); $('#sweepHz').textContent=''; return; } $('#sweepHz').textContent=Math.round(40*Math.pow(16000/40,e/dur)).toLocaleString()+' Hz'; },100);
+};
+$('#spkStop').onclick=stopSound;
+async function fillSinks(){
+  if (!('setSinkId' in AudioContext.prototype)) return;
+  await fillDevices('audiooutput', $('#sinkSel'));
+  $('#sinkRow').hidden = $('#sinkSel').options.length<2;
+}
+$('#sinkSel').onchange=e=>{ ctx().setSinkId(e.target.value).catch(()=>toast("Couldn't switch output")); };
+
+/* ---------- keyboard ---------- */
+const K=(label,code,w=1,extra=[])=>({label,codes:[code,...extra],w});
+const letters=s=>[...s].map(c=>K(c,'Key'+c));
+function layout(type){
+  const cb=type==='cb';
+  const top = cb
+    ? [K('Esc','Escape'),K('Back','BrowserBack',1,['F1']),K('Forward','BrowserForward',1,['F2']),K('Refresh','BrowserRefresh',1,['F3']),K('Full screen','ZoomToggle',1,['F4']),K('Overview','LaunchApp1',1,['F5','MediaSelect']),K('Bright −','BrightnessDown',1,['F6']),K('Bright +','BrightnessUp',1,['F7']),K('Mute','AudioVolumeMute',1,['F8']),K('Vol −','AudioVolumeDown',1,['F9']),K('Vol +','AudioVolumeUp',1,['F10']),K('Lock','Power',1,['F13','Sleep'])]
+    : [K('Esc','Escape'),...Array.from({length:12},(_,i)=>K('F'+(i+1),'F'+(i+1)))];
+  const rows=[
+    [K('`','Backquote'),...[...'1234567890'].map(d=>K(d,'Digit'+d)),K('-','Minus'),K('=','Equal'),K('Backspace','Backspace',2)],
+    [K('Tab','Tab',1.5),...letters('QWERTYUIOP'),K('[','BracketLeft'),K(']','BracketRight'),K('\\','Backslash',1.5)],
+    [cb?K('Search','MetaLeft',1.75,['CapsLock','OSLeft']):K('Caps Lock','CapsLock',1.75),...letters('ASDFGHJKL'),K(';','Semicolon'),K("'",'Quote'),K('Enter','Enter',2.25,['NumpadEnter'])],
+    [K('Shift','ShiftLeft',2.25),...letters('ZXCVBNM'),K(',','Comma'),K('.','Period'),K('/','Slash'),K('Shift','ShiftRight',2.75)],
+    cb ? [K('Ctrl','ControlLeft',1.5),K('Alt','AltLeft',1.5),K('Space','Space',9),K('Alt','AltRight',1.5),K('Ctrl','ControlRight',1.5)]
+       : [K('Ctrl','ControlLeft',1.25),K('Win','MetaLeft',1.25,['OSLeft']),K('Alt','AltLeft',1.25),K('Space','Space',6.25),K('Alt','AltRight',1.25),K('Win','MetaRight',1.25,['OSRight']),K('Menu','ContextMenu',1.25),K('Ctrl','ControlRight',1.25)],
+  ];
+  const side = cb
+    ? [null,null,null,null,null,null,null,K('↑','ArrowUp'),null,K('←','ArrowLeft'),K('↓','ArrowDown'),K('→','ArrowRight')]
+    : [K('Insert','Insert'),K('Home','Home'),K('Page Up','PageUp'),K('Delete','Delete'),K('End','End'),K('Page Down','PageDown'),null,null,null,null,K('↑','ArrowUp'),null,K('←','ArrowLeft'),K('↓','ArrowDown'),K('→','ArrowRight')];
+  return {top,rows,side};
+}
+let kbKeys=[], codeMap=new Map();
+function renderKb(){
+  const L=layout($('#layout').value), kb=$('#kb'); kb.innerHTML=''; kbKeys=[]; codeMap.clear();
+  const mk=k=>{ const el=document.createElement('div'); el.className='key'; el.textContent=k.label; k.el=el; kbKeys.push(k); k.codes.forEach(c=>{ if(!codeMap.has(c)) codeMap.set(c,[]); codeMap.get(c).push(k); }); return el; };
+  const main=document.createElement('div'); main.className='kb-main';
+  [L.top,...L.rows].forEach((r,i)=>{ const row=document.createElement('div'); row.className='kb-row'+(i===0?' top':''); r.forEach(k=>{ const el=mk(k); el.style.flexGrow=k.w; row.appendChild(el); }); main.appendChild(row); });
+  const side=document.createElement('div'); side.className='kb-side';
+  L.side.forEach(k=>side.appendChild(k?mk(k):document.createElement('span')));
+  kb.append(main,side); updateKbCount();
+  $('#kbNote').style.display = $('#layout').value==='cb' ? '' : 'none';
+}
+function updateKbCount(){ $('#kbCount').textContent=`${kbKeys.filter(k=>k.hit).length} / ${kbKeys.length}`; }
+addEventListener('keydown',e=>{
+  if (current!=='keyboard') return;
+  e.preventDefault();
+  $('#kbLast').innerHTML=`<code>${e.code||'(no code)'}</code> ${e.key===' '?'Space':e.key}`;
+  (codeMap.get(e.code)||[]).forEach(k=>{ k.el.classList.add('down','hit'); if(!k.hit){k.hit=true; updateKbCount();} });
+},true);
+addEventListener('keyup',e=>{ if (current!=='keyboard') return; e.preventDefault(); (codeMap.get(e.code)||[]).forEach(k=>k.el.classList.remove('down')); },true);
+addEventListener('blur',()=>kbKeys.forEach(k=>k.el.classList.remove('down')));
+$('#layout').onchange=renderKb;
+$('#kbReset').onclick=()=>{ kbKeys.forEach(k=>{k.hit=false;k.el.classList.remove('hit','down');}); updateKbCount(); $('#kbLast').textContent='–'; };
+if (/CrOS/.test(navigator.userAgent)) $('#layout').value='cb'; else $('#layout').value='std';
+renderKb();
+
+/* ---------- pointer ---------- */
+const pad=$('#pad'), cnt={0:0,1:0,2:0,dbl:0,wheel:0};
+const setB=(id,n)=>$('#b'+id).querySelector('b').textContent=n;
+function showDown(buttons){ [[0,1],[2,2],[1,4]].forEach(([id,bit])=>$('#b'+id).classList.toggle('down',!!(buttons&bit))); }
+pad.addEventListener('mousedown',e=>{ e.preventDefault(); if (cnt[e.button]!==undefined){ cnt[e.button]++; setB(e.button,cnt[e.button]); } showDown(e.buttons); });
+addEventListener('mouseup',e=>showDown(e.buttons));
+pad.addEventListener('mousemove',e=>{ const r=pad.getBoundingClientRect(); $('#padPos').textContent=`Position ${Math.round(e.clientX-r.left)}, ${Math.round(e.clientY-r.top)}`; });
+pad.addEventListener('contextmenu',e=>e.preventDefault());
+pad.addEventListener('dblclick',()=>{ cnt.dbl++; setB('dbl',cnt.dbl); });
+pad.addEventListener('wheel',e=>{ e.preventDefault(); cnt.wheel++; setB('wheel',cnt.wheel);
+  const d=[]; if (e.deltaY) d.push(e.deltaY<0?'up':'down'); if (e.deltaX) d.push(e.deltaX<0?'left':'right');
+  $('#scrollDir').textContent='Scroll direction: '+(d.join(' and ')||'none'); },{passive:false});
+
+/* ---------- touch ---------- */
+const tc=$('#touchCanvas'), tg=tc.getContext('2d'), active=new Map(); let tMax=0, hue=200;
+function sizeTouch(){ const r=tc.getBoundingClientRect(); const img = tc.width? tg.getImageData(0,0,tc.width,tc.height):null; tc.width=r.width*devicePixelRatio; tc.height=r.height*devicePixelRatio; if (img) tg.putImageData(img,0,0); }
+addEventListener('resize',()=>{ if (current==='touch') sizeTouch(); });
+$('#tSupported').textContent = navigator.maxTouchPoints ? navigator.maxTouchPoints : 'None';
+const pos=e=>{ const r=tc.getBoundingClientRect(); return [(e.clientX-r.left)*devicePixelRatio,(e.clientY-r.top)*devicePixelRatio]; };
+function tInfo(e){ $('#tType').textContent = `${e.pointerType}${e.pointerType!=='mouse'?`, ${Math.round(e.pressure*100)}%`:''}`; }
+tc.addEventListener('pointerdown',e=>{ tc.setPointerCapture(e.pointerId); hue=(hue+47)%360; const [x,y]=pos(e); active.set(e.pointerId,{x,y,c:`hsl(${hue} 70% 45%)`}); tMax=Math.max(tMax,active.size);
+  $('#tNow').textContent=active.size; $('#tMax').textContent=tMax; tInfo(e);
+  tg.fillStyle=active.get(e.pointerId).c; tg.beginPath(); tg.arc(x,y,4*devicePixelRatio,0,7); tg.fill(); });
+tc.addEventListener('pointermove',e=>{ const p=active.get(e.pointerId); if(!p) return; const [x,y]=pos(e); tInfo(e);
+  tg.strokeStyle=p.c; tg.lineCap='round'; tg.lineWidth=(e.pointerType==='pen'?1+e.pressure*8:5)*devicePixelRatio;
+  tg.beginPath(); tg.moveTo(p.x,p.y); tg.lineTo(x,y); tg.stroke(); p.x=x; p.y=y; });
+const tEnd=e=>{ active.delete(e.pointerId); $('#tNow').textContent=active.size; };
+tc.addEventListener('pointerup',tEnd); tc.addEventListener('pointercancel',tEnd);
+$('#tClear').onclick=()=>{ tg.clearRect(0,0,tc.width,tc.height); tMax=active.size; $('#tMax').textContent=tMax; };
+
+/* ---------- display ---------- */
+function fillDisplay(){
+  $('#dRes').textContent=`${screen.width}×${screen.height}`;
+  $('#dPhys').textContent=`${Math.round(screen.width*devicePixelRatio)}×${Math.round(screen.height*devicePixelRatio)}`;
+}
+function measureHz(){
+  $('#dHz').textContent='…'; const d=[]; let last=0;
+  const f=ts=>{ if (last) d.push(ts-last); last=ts; if (d.length<120) requestAnimationFrame(f); else { d.sort((a,b)=>a-b); $('#dHz').textContent=Math.round(1000/d[60])+' Hz'; sysInfo['Refresh rate']=$('#dHz').textContent; } };
+  requestAnimationFrame(f);
+}
+$('#hzAgain').onclick=measureHz;
+const PATTERNS=[
+  ['#000','Black: look for lit specks'],['#fff','White: look for dark specks or yellow patches'],
+  ['#f00','Red'],['#0f0','Green'],['#00f','Blue'],['#808080','Gray: look for uneven brightness'],
+  ['linear-gradient(90deg,#000,#fff)','Gray gradient: should be smooth, without bands'],
+  ['linear-gradient(90deg,#f00,#ff0,#0f0,#0ff,#00f,#f0f,#f00)','Color gradient'],
+  ['repeating-conic-gradient(#000 0 25%,#fff 0 50%) 0 0/2px 2px','Fine checkerboard: should look an even gray'],
+];
+let pIdx=0; const ov=$('#overlay');
+function showPattern(){ ov.style.background=PATTERNS[pIdx][0]; const t=$('#overlayTip'); t.textContent=`${pIdx+1} of ${PATTERNS.length}. ${PATTERNS[pIdx][1]}`; t.style.opacity=1; clearTimeout(showPattern._t); showPattern._t=setTimeout(()=>t.style.opacity=0,1800); }
+function endPixels(){ ov.classList.remove('on'); if (document.fullscreenElement) document.exitFullscreen().catch(()=>{}); }
+$('#pixelStart').onclick=()=>{ pIdx=0; ov.classList.add('on'); showPattern(); ov.requestFullscreen?.().catch(()=>{}); };
+ov.onclick=()=>{ pIdx++; pIdx>=PATTERNS.length?endPixels():showPattern(); };
+ov.oncontextmenu=e=>{ e.preventDefault(); pIdx=Math.max(0,pIdx-1); showPattern(); };
+addEventListener('keydown',e=>{ if(!ov.classList.contains('on')) return; e.preventDefault(); e.stopImmediatePropagation();
+  if (e.key==='Escape') endPixels(); else if (e.key==='ArrowLeft'){ pIdx=Math.max(0,pIdx-1); showPattern(); } else ov.onclick(); },true);
+document.addEventListener('fullscreenchange',()=>{ if(!document.fullscreenElement && ov.classList.contains('on')) ov.classList.remove('on'); });
+
+/* ---------- network ---------- */
+function fillNetwork(){
+  $('#nOnline').textContent = navigator.onLine?'Online':'Offline';
+  $('#nOnline').style.color = navigator.onLine?'var(--pass)':'var(--fail)';
+  const c=navigator.connection, rows={};
+  if (c){ if (c.type) rows['Connection type']=c.type; if (c.effectiveType) rows['Quality estimate']=c.effectiveType.toUpperCase();
+    if (c.downlink) rows['Estimated bandwidth']=c.downlink+' Mbps'; if (c.rtt!=null) rows['Estimated round trip']=c.rtt+' ms'; rows['Data saver']=c.saveData?'On':'Off'; }
+  else rows['Details']='This browser doesn\'t share connection details';
+  $('#nInfo').innerHTML=Object.entries(rows).map(([k,v])=>`<div><dt>${k}</dt><dd>${v}</dd></div>`).join('');
+}
+addEventListener('online',()=>current==='network'&&fillNetwork()); addEventListener('offline',()=>current==='network'&&fillNetwork());
+$('#nRun').onclick=async()=>{
+  const btn=$('#nRun'); btn.disabled=true; $('#nMsg').textContent=''; $('#nPing').textContent='…'; $('#nSpeed').textContent='–';
+  try{
+    const times=[];
+    for (let i=0;i<6;i++){ const t=performance.now(); await fetch('https://www.gstatic.com/generate_204?'+Math.random(),{mode:'no-cors',cache:'no-store'}); times.push(performance.now()-t); }
+    const s=times.slice(1).sort((a,b)=>a-b); $('#nPing').textContent=Math.round(s[2])+' ms'; sysInfo['Response time']=$('#nPing').textContent;
+  }catch{ $('#nPing').textContent='Failed'; $('#nMsg').textContent="Couldn't reach Google's test server. You may be offline, or this network blocks it."; btn.disabled=false; return; }
+  try{
+    const ctrl=new AbortController(), t0=performance.now(); let bytes=0; const stop=setTimeout(()=>ctrl.abort(),8000);
+    const r=await fetch('https://speed.cloudflare.com/__down?bytes=25000000',{cache:'no-store',signal:ctrl.signal}); const rd=r.body.getReader();
+    try{ for(;;){ const {done,value}=await rd.read(); if(done) break; bytes+=value.length; const sec=(performance.now()-t0)/1000; if (sec>.3) $('#nSpeed').textContent=(bytes*8/sec/1e6).toFixed(1)+' Mbps'; } }catch(e){ if(e.name!=='AbortError') throw e; }
+    clearTimeout(stop); const sec=(performance.now()-t0)/1000; $('#nSpeed').textContent=(bytes*8/sec/1e6).toFixed(1)+' Mbps'; sysInfo['Download speed']=$('#nSpeed').textContent;
+  }catch{ $('#nSpeed').textContent='Failed'; $('#nMsg').textContent="The download test server couldn't be reached. Response time above is still valid."; }
+  btn.disabled=false;
+};
+
+/* ---------- ChromeOS shortcuts ---------- */
+const GROUPS=[
+  ['Connectivity',[['Network','os-settings/internet'],['Wi‑Fi networks','os-settings/networks?type=WiFi'],['Bluetooth','os-settings/bluetooth'],['Connected phone','os-settings/multidevice'],['Printers','os-settings/cupsPrinters']]],
+  ['Hardware',[['Device','os-settings/device'],['Displays','os-settings/display'],['Mouse and touchpad','os-settings/pointer-overlay'],['Keyboard','os-settings/keyboard-overlay'],['Audio','os-settings/audio'],['Stylus','os-settings/stylus'],['Power','os-settings/power'],['Storage','os-settings/storage']]],
+  ['System and privacy',[['Accounts','os-settings/osPeople'],['Privacy and security','os-settings/osPrivacy'],['Camera and mic access','os-settings/osPrivacy/privacyHub'],['Apps','os-settings/apps'],['Accessibility','os-settings/osAccessibility'],['Languages and inputs','os-settings/osLanguages'],['Date and time','os-settings/dateTime'],['Personalization','os-settings/personalization'],['Linux development environment','os-settings/crostini']]],
+  ['Updates and recovery',[['About ChromeOS and updates','os-settings/help'],['Detailed build info','os-settings/help/details'],['Reset (Powerwash)','os-settings/osReset']]],
+  ['Diagnostic pages',[['Diagnostics app','diagnostics'],['Version details','version'],['System logs','system'],['Network tools','network'],['Connectivity diagnostics','connectivity-diagnostics'],['Graphics (GPU) info','gpu'],['Device event log','device-log'],['Policies on managed devices','policy'],['Who manages this device','management'],['Send feedback','os-feedback'],['Site camera permissions','settings/content/camera'],['Site microphone permissions','settings/content/microphone']]],
+];
+function renderLinks(q=''){
+  q=q.trim().toLowerCase();
+  $('#linkGroups').innerHTML=GROUPS.map(([g,items])=>{
+    const f=items.filter(([n,p])=>!q||n.toLowerCase().includes(q)||p.toLowerCase().includes(q)||g.toLowerCase().includes(q));
+    if(!f.length) return '';
+    return `<div class="grp"><h3>${g}</h3><div class="links">${f.map(([n,p])=>`<div class="link"><div>${n}<span>chrome://${p}</span></div><button data-url="chrome://${p}">Copy link</button></div>`).join('')}</div></div>`;
+  }).join('') || '<p class="hint">Nothing matches. Try a shorter word, like "wifi" or "audio".</p>';
+}
+$('#linkGroups').addEventListener('click',async e=>{ const u=e.target.dataset?.url; if(!u) return; if (await copy(u)) toast('Copied. Paste it into the address bar'); else toast("Couldn't copy. Select the text instead"); });
+$('#linkFilter').oninput=e=>renderLinks(e.target.value);
+renderLinks();
+
+/* ---------- report ---------- */
+$('#copyReport').onclick=async()=>{
+  const lines=[`Device check, ${new Date().toLocaleString()}`,''];
+  Object.entries(sysInfo).forEach(([k,v])=>lines.push(`${k}: ${v}`));
+  lines.push('','Results:');
+  TESTABLE.forEach(v=>{ let s=status[v.id]==='pass'?'Works':status[v.id]==='fail'?'Has a problem':'Not checked';
+    if (v.id==='keyboard') s+=` (${kbKeys.filter(k=>k.hit).length} of ${kbKeys.length} keys registered)`;
+    lines.push(`${v.name}: ${s}`); });
+  if (await copy(lines.join('\n'))) toast('Report copied'); else toast("Couldn't copy the report");
+};
+
+loadSystem();
+showView('system');
+</script>
+</body>
+</html>
